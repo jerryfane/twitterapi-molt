@@ -3,7 +3,6 @@ import { RateLimiter } from '../utils/rate-limiter';
 import {
   Tweet,
   User,
-  SearchParams,
   UserSearchParams,
   PaginatedResponse,
   Trend,
@@ -16,26 +15,6 @@ export class SearchEndpoints {
     private axios: AxiosInstance,
     private rateLimiter: RateLimiter
   ) {}
-
-  async tweets(params: SearchParams): Promise<PaginatedResponse<Tweet>> {
-    return this.rateLimiter.execute(async () => {
-      const searchQuery = this.buildSearchQuery(params);
-
-      const response = await this.axios.get('/twitter/search/tweets', {
-        params: {
-          q: searchQuery,
-          limit: params.limit || 20,
-          cursor: params.cursor
-        }
-      });
-
-      return {
-        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
-      };
-    });
-  }
 
   async users(params: UserSearchParams): Promise<PaginatedResponse<User>> {
     return this.rateLimiter.execute(async () => {
@@ -50,66 +29,6 @@ export class SearchEndpoints {
         data: response.data.users.map((user: any) => this.mapResponseToUser(user)),
         nextCursor: response.data.next_cursor,
         hasMore: response.data.has_next_page
-      };
-    });
-  }
-
-  async topTweets(params: SearchParams): Promise<PaginatedResponse<Tweet>> {
-    return this.rateLimiter.execute(async () => {
-      const searchQuery = this.buildSearchQuery(params);
-
-      const response = await this.axios.get('/twitter/search/top', {
-        params: {
-          q: searchQuery,
-          limit: params.limit || 20,
-          cursor: params.cursor
-        }
-      });
-
-      return {
-        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
-      };
-    });
-  }
-
-  async latestTweets(params: SearchParams): Promise<PaginatedResponse<Tweet>> {
-    return this.rateLimiter.execute(async () => {
-      const searchQuery = this.buildSearchQuery(params);
-
-      const response = await this.axios.get('/twitter/search/latest', {
-        params: {
-          q: searchQuery,
-          limit: params.limit || 20,
-          cursor: params.cursor
-        }
-      });
-
-      return {
-        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
-      };
-    });
-  }
-
-  async mediaTweets(params: SearchParams): Promise<PaginatedResponse<Tweet>> {
-    return this.rateLimiter.execute(async () => {
-      const searchQuery = this.buildSearchQuery({ ...params, filter: { ...params.filter, hasMedia: true } });
-
-      const response = await this.axios.get('/twitter/search/media', {
-        params: {
-          q: searchQuery,
-          limit: params.limit || 20,
-          cursor: params.cursor
-        }
-      });
-
-      return {
-        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
       };
     });
   }
@@ -152,67 +71,6 @@ export class SearchEndpoints {
         hasMore: response.data.has_next_page
       };
     });
-  }
-
-  async suggestions(query: string, limit: number = 10): Promise<string[]> {
-    return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get('/twitter/search/suggestions', {
-        params: { q: query, limit }
-      });
-
-      return response.data.suggestions;
-    });
-  }
-
-  private buildSearchQuery(params: SearchParams): string {
-    let query = params.query;
-    const filter = params.filter;
-
-    if (!filter) {
-      return query;
-    }
-
-    if (filter.fromUser) {
-      query += ` from:${filter.fromUser}`;
-    }
-
-    if (filter.toUser) {
-      query += ` to:${filter.toUser}`;
-    }
-
-    if (filter.minLikes !== undefined) {
-      query += ` min_faves:${filter.minLikes}`;
-    }
-
-    if (filter.minRetweets !== undefined) {
-      query += ` min_retweets:${filter.minRetweets}`;
-    }
-
-    if (filter.hasMedia) {
-      query += ' filter:media';
-    }
-
-    if (filter.isReply !== undefined) {
-      query += filter.isReply ? ' filter:replies' : ' -filter:replies';
-    }
-
-    if (filter.isVerified) {
-      query += ' filter:verified';
-    }
-
-    if (filter.language) {
-      query += ` lang:${filter.language}`;
-    }
-
-    if (filter.since) {
-      query += ` since:${filter.since}`;
-    }
-
-    if (filter.until) {
-      query += ` until:${filter.until}`;
-    }
-
-    return query.trim();
   }
 
   private mapResponseToTweet(data: any): Tweet {

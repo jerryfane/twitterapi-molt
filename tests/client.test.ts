@@ -41,8 +41,9 @@ describe('TwitterAPIClient', () => {
 
     it('should have search endpoints', () => {
       expect(client.search).toBeDefined();
-      expect(client.search.tweets).toBeDefined();
+      expect(client.search.advancedSearch).toBeDefined();
       expect(client.search.users).toBeDefined();
+      expect(client.search.trending).toBeDefined();
     });
   });
 

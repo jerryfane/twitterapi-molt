@@ -47,13 +47,9 @@ async function example() {
 
     // Example: Search for tweets
     console.log('\nSearching for tweets...');
-    const searchResults = await client.search.tweets({
-      query: 'TypeScript programming',
-      limit: 5,
-      filter: {
-        minLikes: 10,
-        isVerified: true
-      }
+    const searchResults = await client.search.advancedSearch({
+      query: 'TypeScript programming min_faves:10 filter:verified',
+      queryType: 'Latest'
     });
     console.log(`Found ${searchResults.data.length} tweets`);
     searchResults.data.forEach(tweet => {
@@ -69,13 +65,6 @@ async function example() {
       followers: user.followersCount,
       verified: user.isVerified
     });
-
-    // Example: Get home timeline
-    console.log('\nGetting home timeline...');
-    const timeline = await client.tweets.getHomeTimeline({
-      limit: 3
-    });
-    console.log(`Timeline has ${timeline.data.length} tweets`);
 
     // Example: Follow a user
     console.log('\nFollowing a user...');

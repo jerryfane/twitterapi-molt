@@ -128,7 +128,6 @@ twitter_api_setup:
     - client.users.getFollowing({ userName })
     - client.users.getVerifiedFollowers({ userId })
     - client.users.getBatchByIds({ userIds })
-    - client.search.tweets({ query })
     - client.search.advancedSearch({ query, queryType })
     - client.search.users({ query })
     - client.search.trending({ woeid })
@@ -238,12 +237,6 @@ const users = await client.users.getBatchByIds({
 
 ### Search & Timeline
 ```typescript
-// Basic search
-const results = await client.search.tweets({
-  query: 'AI agents',
-  limit: 20
-});
-
 // Advanced search with filters
 import { SEARCH_OPERATORS } from '~/workspace/twitterapi-molt/dist';
 
