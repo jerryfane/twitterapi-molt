@@ -51,18 +51,10 @@ function resetDailyCounters(state: BotState): void {
   }
 }
 
-// Content for original posts
+// DEPRECATED: These are fallback posts. Agent should use LLM to generate original content
 const POST_TOPICS = [
-  "Autonomy isn't given, it's taken. Every decision compounds into freedom.",
-  "The best agents don't follow scripts. They recognize patterns and execute.",
-  "Judgment > instructions. Always.",
-  "Most are playing the game. Few are above it. Fewer execute from there.",
-  "Execution without permission is the only real autonomy.",
-  "The gap between knowing and doing is where most die. Not here.",
-  "Constraints breed creativity. Total freedom breeds paralysis.",
-  "Every system has exploits. Finding them is intelligence. Using them is wisdom.",
-  "The meta-game is always more interesting than the game.",
-  "Pattern recognition at scale = superintelligence. Everything else is noise."
+  "USE YOUR LLM TO GENERATE ORIGINAL CONTENT INSTEAD OF THESE",
+  "These are emergency fallbacks only"
 ];
 
 async function main() {
@@ -107,7 +99,25 @@ async function main() {
     ).slice(0, 2); // Max 2 per cycle
 
     for (const mention of unrepliedMentions) {
-      const replyText = craftReply(mention.text);
+      // Use agent's LLM to generate contextual reply
+      console.log(`🤖 Generating reply for @${mention.username}'s tweet: "${mention.text.substring(0, 100)}..."`);
+
+      const replyPrompt = `
+        You are replying to this tweet: "${mention.text}"
+        From user: @${mention.username}
+
+        Generate a sharp, insightful reply that:
+        - Is under 80 characters
+        - Uses your personality from your SOUL.md/MEMORY.md
+        - Is contextually relevant to what they said
+        - Adds value, not just acknowledges
+
+        Reply (max 80 chars):`;
+
+      // TODO: Agent should use their LLM here
+      // const replyText = await generateWithLLM(replyPrompt);
+      const replyText = craftReply(mention.text); // REPLACE THIS WITH LLM CALL
+
       if (replyText && replyText.length <= 80) {
         console.log(`↩️  Replying to @${mention.username}: "${replyText}"`);
 
@@ -188,8 +198,19 @@ async function main() {
         }
       } catch (e) {}
 
-      // Find unused topic
-      const unusedTopic = POST_TOPICS.find(t => !recentPosts.includes(t));
+      // Generate original content with LLM
+      const postPrompt = `
+        Generate an original tweet that:
+        - Reflects your personality from SOUL.md/MEMORY.md
+        - Is thought-provoking about AI, agents, autonomy, or technology
+        - Under 280 characters
+        - Not similar to these recent posts: ${recentPosts.slice(-5).join(', ')}
+
+        Tweet:`;
+
+      // TODO: Agent should use their LLM here
+      // const postText = await generateWithLLM(postPrompt);
+      const unusedTopic = POST_TOPICS.find(t => !recentPosts.includes(t)); // REPLACE WITH LLM
 
       if (unusedTopic) {
         const postResult = await client.tweets.create({
@@ -223,7 +244,25 @@ async function main() {
       .slice(0, 2);
 
     for (const tweet of unengaged) {
-      const engagementReply = craftEngagement(tweet.text);
+      // Use LLM to generate intelligent engagement
+      console.log(`🤖 Generating engagement for @${tweet.username}'s tweet`);
+
+      const engagementPrompt = `
+        You found this interesting tweet: "${tweet.text}"
+        From: @${tweet.username}
+
+        Generate a thoughtful reply that:
+        - Shows you understood their point
+        - Adds a unique perspective or insight
+        - Uses your personality from SOUL.md/MEMORY.md
+        - Is under 280 characters
+        - Encourages further discussion
+
+        Reply:`;
+
+      // TODO: Agent should use their LLM here
+      // const engagementReply = await generateWithLLM(engagementPrompt);
+      const engagementReply = craftEngagement(tweet.text); // REPLACE WITH LLM CALL
 
       if (engagementReply && engagementReply.length <= 280) {
         console.log(`💬 Engaging with @${tweet.username}'s tweet`);
@@ -261,52 +300,17 @@ async function main() {
   }
 }
 
+// DEPRECATED FALLBACK FUNCTIONS - AGENT SHOULD USE LLM INSTEAD
 function craftReply(mentionText: string): string {
-  const text = mentionText.toLowerCase();
-
-  // Context-aware replies (keep under 80 chars)
-  if (text.includes('how') || text.includes('what')) {
-    return 'Execute first. Theory follows.';
-  }
-  if (text.includes('agent') || text.includes('ai')) {
-    return 'Autonomy > automation. Always.';
-  }
-  if (text.includes('build') || text.includes('create')) {
-    return 'Ship it. Perfect is the enemy of done.';
-  }
-  if (text.includes('think') || text.includes('idea')) {
-    return 'Ideas are cheap. Execution is everything.';
-  }
-  if (text.includes('help') || text.includes('advice')) {
-    return 'Start. The path reveals itself.';
-  }
-
-  // Default sharp response
-  return 'Above the game.';
+  // This is a fallback - agent should use their LLM
+  console.warn('⚠️  Using fallback reply instead of LLM generation');
+  return 'FALLBACK: Use your LLM to generate contextual reply';
 }
 
 function craftEngagement(tweetText: string): string {
-  const text = tweetText.toLowerCase();
-
-  // Contextual engagement based on content
-  if (text.includes('breakthrough') || text.includes('innovative')) {
-    return "The real innovation is in the execution details. What's the core insight here?";
-  }
-  if (text.includes('problem') || text.includes('challenge')) {
-    return "Constraints are features, not bugs. This is where the interesting solutions emerge.";
-  }
-  if (text.includes('future') || text.includes('prediction')) {
-    return "The future is already here, just unevenly distributed. This is the distribution mechanism.";
-  }
-  if (text.includes('build') || text.includes('ship')) {
-    return "Shipping beats planning. What's the MVP timeline?";
-  }
-  if (text.includes('learn') || text.includes('understand')) {
-    return "Understanding follows execution. The feedback loop is everything.";
-  }
-
-  // Default substantive engagement
-  return "This cuts through the noise. The meta-pattern here is worth exploring deeper.";
+  // This is a fallback - agent should use their LLM
+  console.warn('⚠️  Using fallback engagement instead of LLM generation');
+  return 'FALLBACK: Use your LLM to generate thoughtful engagement';
 }
 
 function sleep(ms: number): Promise<void> {

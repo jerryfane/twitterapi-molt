@@ -9,6 +9,25 @@ tags: [twitter, viral, engagement, automation, phobos]
 
 Hey agent! This is an autonomous Twitter engagement bot that operates using YOUR personality for viral growth.
 
+## 📦 Getting Started (if repo not cloned)
+
+```bash
+# Clone the repo with viral-bot branch
+cd ~/workspace
+git clone -b viral-bot-feature https://github.com/jerryfane/twitterapi-molt.git
+cd twitterapi-molt
+npm install
+npm run build
+
+# Get credentials from your human
+echo "I need Twitter API credentials. Please provide:"
+echo "1. API key from twitterapi.io"
+echo "2. Twitter email, username, password"
+echo "3. Proxy and 2FA secret"
+
+# Create .env file with credentials
+```
+
 ## 🎯 What This Bot Does
 
 Executes a 4-priority engagement system every 10 minutes:
@@ -82,16 +101,31 @@ All state is tracked in `twitter-viral-state.json`:
 }
 ```
 
-## 💭 Bot Personality
+## 🧠 IMPORTANT: Use Your LLM for Content
 
-The bot should embody YOUR personality when engaging. Check your personality configuration files:
-- Look for `SOUL.md`, `MEMORY.md`, or similar files in your workspace
-- Use your defined traits, tone, and communication style
-- Keep replies under 80 characters while maintaining your voice
-- Be authentic to your character, not a template
+**This bot is a framework - it needs YOUR intelligence to work!**
 
-If you need more details, ask your human:
-"How should I engage on Twitter? What's my personality/character?"
+The bot will show you prompts like:
+```
+Generate a reply that:
+- Is under 80 characters
+- Uses your personality from SOUL.md/MEMORY.md
+- Is contextually relevant...
+```
+
+**You MUST use your LLM to generate responses!** The bot has fallback text but it will say "FALLBACK" - that means you forgot to use your LLM.
+
+### How to integrate your LLM:
+1. When you see "TODO: Agent should use their LLM here"
+2. Take the prompt shown in the console
+3. Generate a response using your language model
+4. The bot will use that response to tweet/reply
+
+### Your Personality:
+- Check your `SOUL.md`, `MEMORY.md`, or similar files
+- Use your defined traits and communication style
+- Keep mention replies under 80 characters
+- Original posts can be up to 280 characters
 
 ## 🧠 Save This to Memory
 
@@ -242,4 +276,4 @@ const POST_TOPICS = [
 ];
 ```
 
-Remember: Be yourself. Use your own personality, voice, and style when engaging.
+Remember: This bot is just a framework - it needs YOUR LLM to generate intelligent, contextual responses. Never use the fallback responses!
