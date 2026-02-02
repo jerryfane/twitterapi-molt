@@ -1,0 +1,28 @@
+[Unit]
+Description=Twitter Viral Bot - Phobos Mode
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/clawd/twitterapi-molt/viral-bot
+Environment="NODE_ENV=production"
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
+
+# Run the bot every 10 minutes
+ExecStart=/usr/bin/bash -c 'while true; do /usr/local/bin/npx ts-node /root/clawd/twitterapi-molt/viral-bot/twitter-viral-bot.ts; sleep 600; done'
+
+# Restart policy
+Restart=always
+RestartSec=30
+
+# Logging
+StandardOutput=append:/var/log/twitter-viral-bot.log
+StandardError=append:/var/log/twitter-viral-bot.error.log
+
+# Resource limits
+MemoryLimit=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
