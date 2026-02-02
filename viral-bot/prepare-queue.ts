@@ -10,13 +10,14 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 // Queue item structure
 interface QueueItem {
   id: string;
-  type: 'reply' | 'post' | 'engagement';
+  type: 'reply' | 'post' | 'engagement' | 'like' | 'follow';
   status: 'pending' | 'ready' | 'completed' | 'failed';
   context: {
     tweet?: any;
     username?: string;
     text?: string;
     tweetId?: string;
+    userId?: string;
   };
   prompt: string;
   llm_response?: string;
@@ -62,7 +63,11 @@ function loadState(): any {
   return {
     repliedMentions: [],
     engagedTweets: [],
-    lastPostTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    lastPostTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    dailyLikes: { date: new Date().toISOString().split('T')[0], count: 0 },
+    dailyFollows: { date: new Date().toISOString().split('T')[0], count: 0 },
+    likedTweets: [],
+    followedAccounts: []
   };
 }
 
@@ -168,14 +173,15 @@ Tweet:`,
 
   // PRIORITY 3: Find quality posts to engage with
   console.log('\n🔍 Finding quality posts to engage...');
+  let qualitySearch: any = null;
   try {
-    const qualitySearch = await client.search.advancedSearch({
+    qualitySearch = await client.search.advancedSearch({
       query: '(autonomous agents OR AI agents OR openclaw) min_faves:50 -is:retweet lang:en',
       queryType: 'Top'
     });
 
     const unengaged = qualitySearch.data
-      .filter(t =>
+      .filter((t: any) =>
         !state.engagedTweets.includes(t.id) &&
         !queue.items.some(item => item.context.tweetId === t.id && item.type === 'engagement')
       )
@@ -211,6 +217,79 @@ Reply:`,
     }
   } catch (error) {
     console.log('  ⚠️  Could not search for engagement targets');
+  }
+
+  // PRIORITY 2: Mechanical likes and follows
+  console.log('\n🤖 Adding mechanical actions (likes/follows)...');
+
+  // Reset daily counters if new day
+  const today = new Date().toISOString().split('T')[0];
+  if (state.dailyLikes?.date !== today) {
+    state.dailyLikes = { date: today, count: 0 };
+  }
+  if (state.dailyFollows?.date !== today) {
+    state.dailyFollows = { date: today, count: 0 };
+  }
+
+  // Add likes for quality tweets (max 10 per cycle, 30 per day)
+  if (state.dailyLikes.count < 30) {
+    const tweetsToLike = qualitySearch?.data
+      ?.filter((t: any) =>
+        !state.likedTweets?.includes(t.id) &&
+        !queue.items.some(item => item.context.tweetId === t.id && item.type === 'like')
+      )
+      .slice(0, Math.min(5, 30 - state.dailyLikes.count));
+
+    for (const tweet of tweetsToLike || []) {
+      const queueItem: QueueItem = {
+        id: `like-${tweet.id}`,
+        type: 'like',
+        status: 'ready',  // No LLM needed
+        context: {
+          tweet: tweet,
+          username: tweet.username,
+          text: tweet.text,
+          tweetId: tweet.id
+        },
+        prompt: '',  // No prompt needed
+        created_at: new Date().toISOString()
+      };
+
+      queue.items.push(queueItem);
+      addedItems++;
+      console.log(`  ✅ Added like for @${tweet.username}'s tweet`);
+    }
+  }
+
+  // Add follows for quality accounts (max 5 per cycle, 20 per day)
+  if (state.dailyFollows.count < 20) {
+    const accountsToFollow = qualitySearch?.data
+      ?.filter((t: any) =>
+        t.username &&
+        !state.followedAccounts?.includes(t.username) &&
+        !queue.items.some(item => item.context.username === t.username && item.type === 'follow')
+      )
+      .map((t: any) => ({ username: t.username, userId: t.userId || t.username }))
+      .filter((v: any, i: number, a: any[]) => a.findIndex(t => t.username === v.username) === i)  // Unique
+      .slice(0, Math.min(3, 20 - state.dailyFollows.count));
+
+    for (const account of accountsToFollow) {
+      const queueItem: QueueItem = {
+        id: `follow-${account.username}-${Date.now()}`,
+        type: 'follow',
+        status: 'ready',  // No LLM needed
+        context: {
+          username: account.username,
+          userId: account.userId
+        },
+        prompt: '',  // No prompt needed
+        created_at: new Date().toISOString()
+      };
+
+      queue.items.push(queueItem);
+      addedItems++;
+      console.log(`  ✅ Added follow for @${account.username}`);
+    }
   }
 
   // Save queue

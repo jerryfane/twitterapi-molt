@@ -6,7 +6,7 @@ const QUEUE_FILE = 'twitter-queue.json';
 
 interface QueueItem {
   id: string;
-  type: 'reply' | 'post' | 'engagement';
+  type: 'reply' | 'post' | 'engagement' | 'like' | 'follow';
   status: 'pending' | 'ready' | 'completed' | 'failed';
   context: {
     tweet?: any;

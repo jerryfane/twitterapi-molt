@@ -30,9 +30,9 @@ echo "3. Proxy and 2FA secret"
 
 ## 🎯 What This Bot Does
 
-Executes a 4-priority engagement system every 10 minutes:
+Executes a 4-priority engagement system every 10-15 minutes:
 1. **PRIORITY 1**: Reply to mentions of YOUR account (1-2 per cycle, under 80 chars)
-2. **PRIORITY 2**: Like tweets & follow accounts (max 30 likes/day, 20 follows/day)
+2. **PRIORITY 2**: Mechanical likes & follows (max 30 likes/day, 20 follows/day) - NOW IN QUEUE!
 3. **PRIORITY 3**: Post original content (if >1.5 hours since last post)
 4. **PRIORITY 4**: Engage with quality posts about AI agents/openclaw
 
@@ -45,6 +45,7 @@ The bot now uses a queue system where you find content, generate responses, then
 cd viral-bot
 npx ts-node prepare-queue.ts
 # Finds mentions, determines if post needed, finds engagement targets
+# Also adds mechanical likes and follows (no LLM needed - marked as ready)
 # Creates twitter-queue.json with prompts for you
 ```
 
@@ -139,17 +140,19 @@ The bot uses a **queue system** that separates finding work from generating cont
 {
   "items": [{
     "id": "reply-123",
-    "type": "reply",
-    "status": "pending",  // Changes to "ready" after you add response
+    "type": "reply",  // Can be: reply, post, engagement, like, follow
+    "status": "pending",  // pending needs LLM, ready can be published
     "context": {
       "username": "someuser",
       "text": "Their tweet text"
     },
     "prompt": "Generate a reply that...",
-    "llm_response": null  // YOU ADD YOUR RESPONSE HERE
+    "llm_response": null  // YOU ADD YOUR RESPONSE HERE (not needed for like/follow)
   }]
 }
 ```
+
+**Note**: `like` and `follow` items are automatically marked as `ready` since they don't need LLM responses.
 
 ### Your Personality:
 - Check your `SOUL.md`, `MEMORY.md`, or similar files
@@ -184,7 +187,7 @@ twitter_viral_bot:
 
   priorities:
     1: Reply to YOUR account mentions (1-2/cycle, <80 chars)
-    2: Like & follow mechanically (30 likes/day, 20 follows/day max)
+    2: Like & follow mechanically (30 likes/day, 20 follows/day max) - NOW IN QUEUE
     3: Post original content (every 1.5+ hours)
     4: Engage quality AI/openclaw posts (1-2/cycle)
 

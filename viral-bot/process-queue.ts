@@ -9,13 +9,14 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
 interface QueueItem {
   id: string;
-  type: 'reply' | 'post' | 'engagement';
+  type: 'reply' | 'post' | 'engagement' | 'like' | 'follow';
   status: 'pending' | 'ready' | 'completed' | 'failed';
   context: {
     tweet?: any;
     username?: string;
     text?: string;
     tweetId?: string;
+    userId?: string;
   };
   prompt: string;
   llm_response?: string;
@@ -35,6 +36,8 @@ interface BotState {
   dailyFollows: { date: string; count: number };
   lastPostTime: string;
   engagedTweets: string[];
+  likedTweets?: string[];
+  followedAccounts?: string[];
 }
 
 const QUEUE_FILE = 'twitter-queue.json';
@@ -74,7 +77,9 @@ function loadState(): BotState {
     dailyLikes: { date: new Date().toISOString().split('T')[0], count: 0 },
     dailyFollows: { date: new Date().toISOString().split('T')[0], count: 0 },
     lastPostTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    engagedTweets: []
+    engagedTweets: [],
+    likedTweets: [],
+    followedAccounts: []
   };
 }
 
@@ -225,6 +230,60 @@ async function main() {
               item.error = engagement.message;
               failCount++;
               console.log('  ❌ Failed:', engagement.message);
+            }
+          }
+          break;
+
+        case 'like':
+          if (item.context.tweetId) {
+            console.log(`  ❤️  Liking @${item.context.username}'s tweet`);
+
+            try {
+              await client.tweets.like(item.context.tweetId);
+              item.status = 'completed';
+              item.processed_at = new Date().toISOString();
+
+              // Update state
+              state.dailyLikes.count++;
+              if (!state.likedTweets) state.likedTweets = [];
+              state.likedTweets.push(item.context.tweetId);
+
+              successCount++;
+              console.log('  ✅ Liked');
+            } catch (error: any) {
+              item.status = 'failed';
+              item.error = error.message;
+              failCount++;
+              console.log('  ❌ Failed to like:', error.message);
+            }
+          }
+          break;
+
+        case 'follow':
+          if (item.context.userId) {
+            console.log(`  👤 Following @${item.context.username}`);
+
+            try {
+              await client.users.follow({
+                userId: item.context.userId
+              });
+              item.status = 'completed';
+              item.processed_at = new Date().toISOString();
+
+              // Update state
+              state.dailyFollows.count++;
+              if (!state.followedAccounts) state.followedAccounts = [];
+              if (item.context.username) {
+                state.followedAccounts.push(item.context.username);
+              }
+
+              successCount++;
+              console.log('  ✅ Followed');
+            } catch (error: any) {
+              item.status = 'failed';
+              item.error = error.message;
+              failCount++;
+              console.log('  ❌ Failed to follow:', error.message);
             }
           }
           break;
