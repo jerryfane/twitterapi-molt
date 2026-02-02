@@ -54,9 +54,9 @@ export class TweetEndpoints {
       });
 
       return {
-        success: response.data.status === 'success',
+        success: response.data?.status === 'success',
         tweetId: tweetId,
-        message: response.data.msg || response.data.message
+        message: response.data?.msg || response.data?.message || 'Request completed'
       };
     });
   }
@@ -75,9 +75,9 @@ export class TweetEndpoints {
       });
 
       return {
-        success: response.data.status === 'success',
+        success: response.data?.status === 'success',
         tweetId: tweetId,
-        message: response.data.msg || response.data.message
+        message: response.data?.msg || response.data?.message || 'Request completed'
       };
     });
   }
@@ -96,9 +96,9 @@ export class TweetEndpoints {
       });
 
       return {
-        success: response.data.status === 'success',
+        success: response.data?.status === 'success',
         tweetId: tweetId,
-        message: response.data.msg || response.data.message
+        message: response.data?.msg || response.data?.message || 'Request completed'
       };
     });
   }
@@ -117,9 +117,9 @@ export class TweetEndpoints {
       });
 
       return {
-        success: response.data.status === 'success',
-        tweetId: response.data.retweet_id || tweetId,
-        message: response.data.msg || response.data.message
+        success: response.data?.status === 'success',
+        tweetId: response.data?.retweet_id || tweetId,
+        message: response.data?.msg || response.data?.message || 'Request completed'
       };
     });
   }
@@ -138,9 +138,9 @@ export class TweetEndpoints {
       });
 
       return {
-        success: response.data.status === 'success',
+        success: response.data?.status === 'success',
         tweetId: tweetId,
-        message: response.data.msg || response.data.message
+        message: response.data?.msg || response.data?.message || 'Request completed'
       };
     });
   }

@@ -16,7 +16,9 @@ import {
 export class UserEndpoints {
   constructor(
     private axios: AxiosInstance,
-    private rateLimiter: RateLimiter
+    private rateLimiter: RateLimiter,
+    private getLoginCookie: () => string | undefined,
+    private getProxy?: () => string | undefined
   ) {}
 
   async getById(userId: string): Promise<User> {
@@ -28,8 +30,10 @@ export class UserEndpoints {
 
   async getByUsername(username: string): Promise<User> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get(`/twitter/user/username/${username}`);
-      return this.mapResponseToUser(response.data);
+      const response = await this.axios.get('/twitter/user/info', {
+        params: { userName: username }
+      });
+      return this.mapResponseToUser(response.data.data);
     });
   }
 
@@ -55,85 +59,127 @@ export class UserEndpoints {
 
   async follow(params: FollowParams): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
       const response = await this.axios.post('/twitter/follow_user_v2', {
+        login_cookies: loginCookie,
         user_id: params.userId,
+        proxy: this.getProxy ? this.getProxy() : undefined,
         enable_notifications: params.notifications
       });
 
       return {
-        success: response.data.success,
+        success: response.data.status === 'success' || response.data.success === true,
         userId: params.userId,
-        message: response.data.message
+        message: response.data.msg || response.data.message
       };
     });
   }
 
   async unfollow(userId: string): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
       const response = await this.axios.post('/twitter/unfollow_user_v2', {
-        user_id: userId
+        login_cookies: loginCookie,
+        user_id: userId,
+        proxy: this.getProxy ? this.getProxy() : undefined
       });
 
       return {
-        success: response.data.success,
+        success: response.data.status === 'success' || response.data.success === true,
         userId: userId,
-        message: response.data.message
+        message: response.data.msg || response.data.message
       };
     });
   }
 
   async block(userId: string): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
       const response = await this.axios.post('/twitter/user/block', {
-        user_id: userId
+        login_cookies: loginCookie,
+        user_id: userId,
+        proxy: this.getProxy ? this.getProxy() : undefined
       });
 
       return {
-        success: response.data.success,
+        success: response.data.status === 'success' || response.data.success === true,
         userId: userId,
-        message: response.data.message
+        message: response.data.msg || response.data.message
       };
     });
   }
 
   async unblock(userId: string): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
       const response = await this.axios.post('/twitter/user/unblock', {
-        user_id: userId
+        login_cookies: loginCookie,
+        user_id: userId,
+        proxy: this.getProxy ? this.getProxy() : undefined
       });
 
       return {
-        success: response.data.success,
+        success: response.data.status === 'success' || response.data.success === true,
         userId: userId,
-        message: response.data.message
+        message: response.data.msg || response.data.message
       };
     });
   }
 
   async mute(userId: string): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
       const response = await this.axios.post('/twitter/user/mute', {
-        user_id: userId
+        login_cookies: loginCookie,
+        user_id: userId,
+        proxy: this.getProxy ? this.getProxy() : undefined
       });
 
       return {
-        success: response.data.success,
+        success: response.data.status === 'success' || response.data.success === true,
         userId: userId,
-        message: response.data.message
+        message: response.data.msg || response.data.message
       };
     });
   }
 
   async unmute(userId: string): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
       const response = await this.axios.post('/twitter/user/unmute', {
-        user_id: userId
+        login_cookies: loginCookie,
+        user_id: userId,
+        proxy: this.getProxy ? this.getProxy() : undefined
       });
 
       return {
-        success: response.data.success,
+        success: response.data.status === 'success' || response.data.success === true,
         userId: userId,
-        message: response.data.message
+        message: response.data.msg || response.data.message
       };
     });
   }
@@ -259,11 +305,20 @@ export class UserEndpoints {
     website?: string;
   }): Promise<UserActionResponse> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.post('/twitter/user/update_profile', params);
+      const loginCookie = this.getLoginCookie();
+      if (!loginCookie) {
+        throw new Error('Not authenticated. Please login first.');
+      }
+
+      const response = await this.axios.post('/twitter/user/update_profile', {
+        login_cookies: loginCookie,
+        proxy: this.getProxy ? this.getProxy() : undefined,
+        ...params
+      });
 
       return {
-        success: response.data.success,
-        message: response.data.message
+        success: response.data.status === 'success' || response.data.success === true,
+        message: response.data.msg || response.data.message
       };
     });
   }
@@ -271,16 +326,16 @@ export class UserEndpoints {
   private mapResponseToUser(data: any): User {
     return {
       id: data.id || data.user_id,
-      username: data.username || data.screen_name,
+      username: data.userName || data.username || data.screen_name,
       name: data.name || data.display_name,
       bio: data.bio || data.description,
-      profilePicUrl: data.profile_pic_url || data.profile_image_url,
-      followersCount: data.followers_count,
-      followingCount: data.following_count || data.friends_count,
-      tweetsCount: data.tweets_count || data.statuses_count,
-      isVerified: data.is_verified || data.verified,
-      isPrivate: data.is_private || data.protected,
-      createdAt: data.created_at
+      profilePicUrl: data.profilePicture || data.profile_pic_url || data.profile_image_url,
+      followersCount: data.followers || data.followers_count,
+      followingCount: data.following || data.following_count || data.friends_count,
+      tweetsCount: data.statusesCount || data.tweets_count || data.statuses_count,
+      isVerified: data.isVerified || data.is_verified || data.verified,
+      isPrivate: data.protected || data.is_private,
+      createdAt: data.createdAt || data.created_at
     };
   }
 

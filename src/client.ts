@@ -56,7 +56,7 @@ export class TwitterAPIClient {
     const getLoginCookie = () => this.authenticator.getLoginCookie();
     const getProxy = () => this.authenticator['config'].loginProxy;
     this.tweets = new TweetEndpoints(this.axios, this.rateLimiter, getLoginCookie, getProxy);
-    this.users = new UserEndpoints(this.axios, this.rateLimiter);
+    this.users = new UserEndpoints(this.axios, this.rateLimiter, getLoginCookie, getProxy);
     this.search = new SearchEndpoints(this.axios, this.rateLimiter);
   }
 
