@@ -36,18 +36,44 @@ Executes a 4-priority engagement system every 10 minutes:
 3. **PRIORITY 3**: Post original content (if >1.5 hours since last post)
 4. **PRIORITY 4**: Engage with quality posts about AI agents/openclaw
 
-## 🚀 Quick Execution
+## 🚀 Quick Execution (Queue-Based Workflow)
 
-When asked to "run the Twitter viral bot" or "engage on Twitter":
+The bot now uses a queue system where you find content, generate responses, then publish:
 
+### Step 1: Find Content & Build Queue
 ```bash
-# First, ask your human which account to monitor for mentions
-echo "Which Twitter username should I monitor for mentions? (without @)"
-# Use their answer to update the bot configuration
-
-# From twitterapi-molt directory
 cd viral-bot
-./twitter-viral.sh run
+npx ts-node prepare-queue.ts
+# Finds mentions, determines if post needed, finds engagement targets
+# Creates twitter-queue.json with prompts for you
+```
+
+### Step 2: Generate Responses with Your LLM
+```bash
+# View the queue and prompts
+npx ts-node view-queue.ts
+
+# For each prompt, generate a response using your LLM
+# Then update the queue with your responses:
+
+# Option A: Interactive mode
+npx ts-node view-queue.ts --interactive
+# (Enter responses when prompted)
+
+# Option B: Direct update
+npx ts-node update-queue.ts reply-123 "Your clever reply here"
+
+# Option C: Batch update from file
+npx ts-node update-queue.ts --example  # Creates template
+# Edit example-responses.json with your LLM responses
+npx ts-node update-queue.ts --batch example-responses.json
+```
+
+### Step 3: Publish Your Content
+```bash
+npx ts-node process-queue.ts
+# Publishes all ready items from queue
+# Updates state tracking
 ```
 
 ## 🎯 Configure Target Account
@@ -72,19 +98,18 @@ If not set, the bot will use the authenticated account's username as fallback.
 When asked to "set up continuous Twitter engagement":
 
 ```bash
-# Option 1: Add to crontab (RECOMMENDED)
+# For Queue-Based Workflow (RECOMMENDED - uses your LLM)
 crontab -e
 # Add this line:
-*/10 * * * * /root/clawd/twitterapi-molt/viral-bot/twitter-viral-cron.sh
+*/15 * * * * /root/clawd/twitterapi-molt/viral-bot/viral-queue-cron.sh
 
-# Option 2: Run continuous mode
-cd /root/clawd/twitterapi-molt/viral-bot
-./twitter-viral.sh continuous
+# This cron will:
+# - Find new content every 15 minutes (prepare-queue)
+# - Publish ready items (process-queue)
+# - You need to periodically check and add LLM responses
 
-# Option 3: Install as systemd service
-sudo cp twitter-viral.service /etc/systemd/system/
-sudo systemctl enable twitter-viral
-sudo systemctl start twitter-viral
+# For Old Direct Workflow (DEPRECATED - uses hardcoded responses)
+# */10 * * * * /root/clawd/twitterapi-molt/viral-bot/twitter-viral-cron.sh
 ```
 
 ## 📊 State Management
@@ -101,25 +126,30 @@ All state is tracked in `twitter-viral-state.json`:
 }
 ```
 
-## 🧠 IMPORTANT: Use Your LLM for Content
+## 🧠 Queue System & Your LLM
 
-**This bot is a framework - it needs YOUR intelligence to work!**
+The bot uses a **queue system** that separates finding work from generating content:
 
-The bot will show you prompts like:
+1. **prepare-queue.ts** - Finds tweets/mentions and creates prompts
+2. **YOUR LLM** - Generates responses for each prompt
+3. **process-queue.ts** - Publishes your responses
+
+### Queue File Structure (twitter-queue.json):
+```json
+{
+  "items": [{
+    "id": "reply-123",
+    "type": "reply",
+    "status": "pending",  // Changes to "ready" after you add response
+    "context": {
+      "username": "someuser",
+      "text": "Their tweet text"
+    },
+    "prompt": "Generate a reply that...",
+    "llm_response": null  // YOU ADD YOUR RESPONSE HERE
+  }]
+}
 ```
-Generate a reply that:
-- Is under 80 characters
-- Uses your personality from SOUL.md/MEMORY.md
-- Is contextually relevant...
-```
-
-**You MUST use your LLM to generate responses!** The bot has fallback text but it will say "FALLBACK" - that means you forgot to use your LLM.
-
-### How to integrate your LLM:
-1. When you see "TODO: Agent should use their LLM here"
-2. Take the prompt shown in the console
-3. Generate a response using your language model
-4. The bot will use that response to tweet/reply
 
 ### Your Personality:
 - Check your `SOUL.md`, `MEMORY.md`, or similar files
@@ -137,16 +167,20 @@ twitter_viral_bot:
   purpose: Autonomous Twitter engagement for viral growth
 
   execution:
+    # New queue-based workflow
+    step1_find: npx ts-node prepare-queue.ts  # Find content
+    step2_view: npx ts-node view-queue.ts      # See prompts
+    step2_respond: npx ts-node update-queue.ts  # Add LLM responses
+    step3_publish: npx ts-node process-queue.ts  # Publish
+
+    # Old direct workflow (deprecated)
     single_run: ./twitter-viral.sh run
     continuous: ./twitter-viral.sh continuous
-    check_stats: ./twitter-viral.sh stats
-    view_state: ./twitter-viral.sh state
-    reset_state: ./twitter-viral.sh clean
-    test_setup: npx ts-node test-viral-setup.ts
 
   cron_setup:
-    command: "*/10 * * * * /root/clawd/twitterapi-molt/viral-bot/twitter-viral-cron.sh"
-    frequency: every_10_minutes
+    command: "*/15 * * * * /root/clawd/twitterapi-molt/viral-bot/viral-queue-cron.sh"
+    frequency: every_15_minutes
+    note: uses_queue_system_with_llm
 
   priorities:
     1: Reply to YOUR account mentions (1-2/cycle, <80 chars)
