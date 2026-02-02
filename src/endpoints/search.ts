@@ -123,7 +123,16 @@ export class SearchEndpoints {
         }
       });
 
-      return response.data.trends;
+      // Handle nested trend structure
+      return response.data.trends.map((item: any) => {
+        const trend = item.trend || item;
+        return {
+          name: trend.name,
+          target: trend.target,
+          rank: trend.rank,
+          meta_description: trend.meta_description || ''
+        };
+      });
     });
   }
 

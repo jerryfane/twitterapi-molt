@@ -163,9 +163,9 @@ export class TweetEndpoints {
       });
 
       return {
-        data: response.data.replies.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_next_page
+        data: response.data.replies ? response.data.replies.map((tweet: any) => this.mapResponseToTweet(tweet)) : [],
+        nextCursor: response.data.next_cursor || undefined,
+        hasMore: response.data.has_next_page || false
       };
     });
   }
@@ -229,9 +229,9 @@ export class TweetEndpoints {
       });
 
       return {
-        data: response.data.mentions.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.cursor,
-        hasMore: !!response.data.cursor  // Has more if cursor is returned
+        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
+        nextCursor: response.data.next_cursor,
+        hasMore: response.data.has_next_page
       };
     });
   }
