@@ -117,12 +117,21 @@ twitter_api_setup:
 
   key_operations:
     - client.login() - authenticates and saves cookie
+    - client.getMyInfo() - check account credits
     - client.tweets.create({ text: "message" })
     - client.tweets.like(tweetId)
     - client.tweets.retweet(tweetId)
-    - client.users.follow({ userId })
-    - client.search.tweets({ query })
+    - client.tweets.getReplies({ tweetId, queryType })
     - client.tweets.getMentions({ userName: "username" })
+    - client.users.follow({ userId })
+    - client.users.getFollowers({ userName })
+    - client.users.getFollowing({ userName })
+    - client.users.getVerifiedFollowers({ userId })
+    - client.users.getBatchByIds({ userIds })
+    - client.search.tweets({ query })
+    - client.search.advancedSearch({ query, queryType })
+    - client.search.users({ query })
+    - client.search.trending({ woeid })
 
   error_handling:
     - 401: Re-authenticate with client.login()
@@ -164,6 +173,13 @@ setInterval(() => heartbeat(client), 4 * 60 * 60 * 1000); // Every 4 hours
 
 ## 📝 Common Operations
 
+### Account Info
+```typescript
+// Get your account credits
+const info = await client.getMyInfo();
+console.log('Credits remaining:', info.recharge_credits);
+```
+
 ### Tweet Operations
 ```typescript
 // Post a tweet
@@ -181,6 +197,12 @@ await client.tweets.retweet('tweet_id');
 
 // Delete a tweet
 await client.tweets.delete('tweet_id');
+
+// Get replies with sorting
+const replies = await client.tweets.getReplies({
+  tweetId: 'tweet_id',
+  queryType: 'Relevance'  // or 'Latest' or 'Likes'
+});
 ```
 
 ### User Operations
@@ -192,17 +214,54 @@ const user = await client.users.getByUsername('elonmusk');
 await client.users.follow({ userId: user.id });
 await client.users.unfollow(user.id);
 
-// Get followers/following
-const followers = await client.users.getFollowers(user.id);
-const following = await client.users.getFollowing(user.id);
+// Get followers/following (updated API)
+const followers = await client.users.getFollowers({
+  userName: 'elonmusk',
+  pageSize: 200  // up to 200 per page
+});
+
+const following = await client.users.getFollowing({
+  userName: 'elonmusk',
+  pageSize: 200
+});
+
+// Get only verified followers
+const verifiedFollowers = await client.users.getVerifiedFollowers({
+  userId: user.id
+});
+
+// Get multiple users at once
+const users = await client.users.getBatchByIds({
+  userIds: ['12345', '67890', '11111']
+});
 ```
 
 ### Search & Timeline
 ```typescript
-// Search tweets
+// Basic search
 const results = await client.search.tweets({
   query: 'AI agents',
   limit: 20
+});
+
+// Advanced search with filters
+import { SEARCH_OPERATORS } from '~/workspace/twitterapi-molt/dist';
+
+const advancedResults = await client.search.advancedSearch({
+  query: '"AI" OR "machine learning" from:elonmusk since:2023-01-01 min_faves:100',
+  queryType: 'Latest'  // or 'Top'
+});
+
+// Search users
+const userResults = await client.search.users({
+  query: 'developer'
+});
+
+// Get trending topics
+import { WOEID } from '~/workspace/twitterapi-molt/dist';
+
+const worldTrends = await client.search.trending({
+  woeid: WOEID.WORLDWIDE  // or WOEID.USA, WOEID.UK, etc.
 });
 
 // Get mentions for a specific user
@@ -248,14 +307,52 @@ The wrapper handles rate limiting automatically:
 4. **Respect rate limits** - They're enforced automatically
 5. **Keep credentials secure** - Never log or expose them
 
+## 🔍 Advanced Search Operators
+
+Use these operators to build powerful search queries:
+
+```typescript
+// Common search operators
+from:username        // Tweets from specific user
+to:username         // Replies to specific user
+@username          // Mentioning user
+since:2023-01-01   // Tweets since date
+until:2024-01-01   // Tweets until date
+min_faves:100      // Minimum likes
+min_retweets:50    // Minimum retweets
+filter:media       // Has images/videos
+filter:images      // Has images only
+filter:videos      // Has videos only
+lang:en           // Language filter
+OR                // Either term
+-keyword          // Exclude keyword
+"exact phrase"    // Exact match
+
+// Example: AI tweets from Elon with 100+ likes
+"AI" OR "GPT" from:elonmusk min_faves:100 since:2023-01-01
+```
+
+## 🌍 Common WOEID Locations
+
+For trending topics by location:
+
+```typescript
+WOEID.WORLDWIDE = 1
+WOEID.USA = 23424977
+WOEID.UK = 23424975
+WOEID.CANADA = 23424775
+WOEID.AUSTRALIA = 23424748
+WOEID.NEW_YORK = 2459115
+WOEID.LOS_ANGELES = 2442047
+WOEID.LONDON = 44418
+// Full list: https://gist.github.com/tedyblood/5bb5a9f78314cc1f478b3dd7cde790b9
+```
+
 ## 📚 API Endpoints
 
-This wrapper uses twitterapi.io v2 endpoints:
-- `/twitter/user_login_v2` - Authentication
-- `/twitter/create_tweet_v2` - Post tweets
-- `/twitter/like_tweet_v2` - Like tweets
-- `/twitter/retweet_v2` - Retweet
-- `/twitter/follow_user_v2` - Follow users
-- And many more...
+This wrapper uses twitterapi.io endpoints including:
+- Authentication, tweets, users, search, trends
+- All using the twitterapi.io service (NOT official Twitter API)
+- Requires API key from https://twitterapi.io/?ref=0xmartian
 
-Remember: This is a third-party service with its own pricing and limitations. Always check twitterapi.io documentation for updates.
+Remember: This is a third-party service with its own pricing and limitations.
