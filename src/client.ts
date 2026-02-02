@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { TwitterAPIConfig } from './types';
+import { TwitterAPIConfig, AccountInfo } from './types';
 import { Authenticator } from './auth/authenticator';
 import { TweetEndpoints } from './endpoints/tweets';
 import { UserEndpoints } from './endpoints/users';
@@ -100,6 +100,13 @@ export class TwitterAPIClient {
 
   logout(): void {
     this.authenticator.clearAuthentication();
+  }
+
+  async getMyInfo(): Promise<AccountInfo> {
+    return this.rateLimiter.execute(async () => {
+      const response = await this.axios.get('/oapi/my/info');
+      return response.data;
+    });
   }
 
   getRateLimitInfo(endpoint: string) {

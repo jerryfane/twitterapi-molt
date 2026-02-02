@@ -5,6 +5,8 @@ import {
   CreateTweetParams,
   TweetActionResponse,
   TimelineParams,
+  MentionsParams,
+  RepliesParams,
   PaginatedResponse
 } from '../types';
 
@@ -150,22 +152,20 @@ export class TweetEndpoints {
     });
   }
 
-  async getReplies(
-    tweetId: string,
-    params?: TimelineParams
-  ): Promise<PaginatedResponse<Tweet>> {
+  async getReplies(params: RepliesParams): Promise<PaginatedResponse<Tweet>> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get(`/twitter/tweet/${tweetId}/replies`, {
+      const response = await this.axios.get('/twitter/tweet/replies/v2', {
         params: {
-          limit: params?.limit || 20,
-          cursor: params?.cursor
+          tweetId: params.tweetId,
+          cursor: params.cursor || '',
+          queryType: params.queryType || 'Relevance'
         }
       });
 
       return {
         data: response.data.replies.map((tweet: any) => this.mapResponseToTweet(tweet)),
         nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
+        hasMore: response.data.has_next_page
       };
     });
   }
@@ -216,41 +216,22 @@ export class TweetEndpoints {
     });
   }
 
-  async getHomeTimeline(params?: TimelineParams): Promise<PaginatedResponse<Tweet>> {
-    return this.rateLimiter.execute(async () => {
-      const loginCookie = this.getLoginCookie();
-      const response = await this.axios.get('/twitter/timeline/home', {
-        params: {
-          limit: params?.limit || 20,
-          cursor: params?.cursor,
-          include_replies: params?.includeReplies,
-          login_cookies: loginCookie  // Some GET endpoints might need this
-        }
-      });
 
-      return {
-        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
-      };
-    });
-  }
-
-  async getMentions(params?: TimelineParams): Promise<PaginatedResponse<Tweet>> {
+  async getMentions(params: MentionsParams): Promise<PaginatedResponse<Tweet>> {
     return this.rateLimiter.execute(async () => {
-      const loginCookie = this.getLoginCookie();
-      const response = await this.axios.get('/twitter/timeline/mentions', {
+      const response = await this.axios.get('/twitter/user/mentions', {
         params: {
-          limit: params?.limit || 20,
-          cursor: params?.cursor,
-          login_cookies: loginCookie  // Some GET endpoints might need this
+          userName: params.userName,
+          cursor: params.cursor || '',
+          sinceTime: params.sinceTime,
+          untilTime: params.untilTime
         }
       });
 
       return {
         data: response.data.mentions.map((tweet: any) => this.mapResponseToTweet(tweet)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
+        nextCursor: response.data.cursor,
+        hasMore: !!response.data.cursor  // Has more if cursor is returned
       };
     });
   }

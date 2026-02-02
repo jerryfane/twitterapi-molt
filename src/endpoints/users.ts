@@ -6,7 +6,11 @@ import {
   FollowParams,
   PaginatedResponse,
   Tweet,
-  TimelineParams
+  TimelineParams,
+  FollowersParams,
+  FollowingParams,
+  BatchUserParams,
+  VerifiedFollowersParams
 } from '../types';
 
 export class UserEndpoints {
@@ -33,6 +37,17 @@ export class UserEndpoints {
     return this.rateLimiter.execute(async () => {
       const response = await this.axios.post('/twitter/users/bulk', {
         user_ids: userIds
+      });
+      return response.data.users.map((user: any) => this.mapResponseToUser(user));
+    });
+  }
+
+  async getBatchByIds(params: BatchUserParams): Promise<User[]> {
+    return this.rateLimiter.execute(async () => {
+      const response = await this.axios.get('/twitter/user/batch_info_by_ids', {
+        params: {
+          userIds: params.userIds.join(',')
+        }
       });
       return response.data.users.map((user: any) => this.mapResponseToUser(user));
     });
@@ -123,42 +138,55 @@ export class UserEndpoints {
     });
   }
 
-  async getFollowers(
-    userId: string,
-    params?: { limit?: number; cursor?: string }
-  ): Promise<PaginatedResponse<User>> {
+  async getFollowers(params: FollowersParams): Promise<PaginatedResponse<User>> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get(`/twitter/user/${userId}/followers`, {
+      const response = await this.axios.get('/twitter/user/followers', {
         params: {
-          limit: params?.limit || 50,
-          cursor: params?.cursor
+          userName: params.userName,
+          cursor: params.cursor || '',
+          pageSize: params.pageSize || 200
         }
       });
 
       return {
         data: response.data.followers.map((user: any) => this.mapResponseToUser(user)),
-        nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
+        nextCursor: response.data.cursor,
+        hasMore: !!response.data.cursor
       };
     });
   }
 
-  async getFollowing(
-    userId: string,
-    params?: { limit?: number; cursor?: string }
-  ): Promise<PaginatedResponse<User>> {
+  async getFollowing(params: FollowingParams): Promise<PaginatedResponse<User>> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get(`/twitter/user/${userId}/following`, {
+      const response = await this.axios.get('/twitter/user/followings', {
         params: {
-          limit: params?.limit || 50,
-          cursor: params?.cursor
+          userName: params.userName,
+          cursor: params.cursor || '',
+          pageSize: params.pageSize || 200
         }
       });
 
       return {
-        data: response.data.following.map((user: any) => this.mapResponseToUser(user)),
+        data: response.data.followings.map((user: any) => this.mapResponseToUser(user)),
         nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
+        hasMore: response.data.has_next_page
+      };
+    });
+  }
+
+  async getVerifiedFollowers(params: VerifiedFollowersParams): Promise<PaginatedResponse<User>> {
+    return this.rateLimiter.execute(async () => {
+      const response = await this.axios.get('/twitter/user/verifiedFollowers', {
+        params: {
+          user_id: params.userId,
+          cursor: params.cursor || ''
+        }
+      });
+
+      return {
+        data: response.data.followers.map((user: any) => this.mapResponseToUser(user)),
+        nextCursor: response.data.cursor,
+        hasMore: !!response.data.cursor
       };
     });
   }

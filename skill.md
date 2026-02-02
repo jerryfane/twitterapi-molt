@@ -122,7 +122,7 @@ twitter_api_setup:
     - client.tweets.retweet(tweetId)
     - client.users.follow({ userId })
     - client.search.tweets({ query })
-    - client.tweets.getMentions()
+    - client.tweets.getMentions({ userName: "username" })
 
   error_handling:
     - 401: Re-authenticate with client.login()
@@ -131,7 +131,7 @@ twitter_api_setup:
 
   session_management:
     - Heartbeat every 4 hours to keep session active
-    - Use client.verifyAuthentication() or get timeline
+    - Use client.verifyAuthentication() to check status
     - Re-login automatically if session expires
 ```
 
@@ -140,18 +140,20 @@ twitter_api_setup:
 **Heartbeat Strategy:** Call the API at least once every 4 hours to keep your session active:
 
 ```typescript
-// Simple heartbeat - just verify auth or get timeline
+// Simple heartbeat - just verify auth
 async function heartbeat(client: TwitterAPIClient) {
   try {
-    // Option 1: Just verify authentication
+    // Verify authentication is still valid
     const isValid = await client.verifyAuthentication();
 
-    // Option 2: Get minimal timeline data
-    await client.tweets.getHomeTimeline({ limit: 1 });
+    if (!isValid) {
+      // Re-authenticate if session expired
+      await client.login();
+    }
 
     console.log('Session refreshed at', new Date().toISOString());
   } catch (error) {
-    // Re-authenticate if session expired
+    // Re-authenticate on error
     await client.login();
   }
 }
@@ -203,11 +205,12 @@ const results = await client.search.tweets({
   limit: 20
 });
 
-// Get mentions
-const mentions = await client.tweets.getMentions({ limit: 10 });
-
-// Get home timeline
-const timeline = await client.tweets.getHomeTimeline({ limit: 20 });
+// Get mentions for a specific user
+const mentions = await client.tweets.getMentions({
+  userName: 'elonmusk',  // Required - whose mentions to get
+  cursor: '',  // For pagination
+  limit: 20  // Returns exactly 20 per page
+});
 ```
 
 ## ⚡ Rate Limiting

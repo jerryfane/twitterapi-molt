@@ -5,7 +5,10 @@ import {
   User,
   SearchParams,
   UserSearchParams,
-  PaginatedResponse
+  PaginatedResponse,
+  Trend,
+  TrendsParams,
+  AdvancedSearchParams
 } from '../types';
 
 export class SearchEndpoints {
@@ -36,18 +39,17 @@ export class SearchEndpoints {
 
   async users(params: UserSearchParams): Promise<PaginatedResponse<User>> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get('/twitter/search/users', {
+      const response = await this.axios.get('/twitter/user/search', {
         params: {
-          q: params.query,
-          limit: params.limit || 20,
-          cursor: params.cursor
+          query: params.query,
+          cursor: params.cursor || ''
         }
       });
 
       return {
         data: response.data.users.map((user: any) => this.mapResponseToUser(user)),
         nextCursor: response.data.next_cursor,
-        hasMore: response.data.has_more
+        hasMore: response.data.has_next_page
       };
     });
   }
@@ -112,13 +114,34 @@ export class SearchEndpoints {
     });
   }
 
-  async trending(location?: string): Promise<string[]> {
+  async trending(params: TrendsParams): Promise<Trend[]> {
     return this.rateLimiter.execute(async () => {
-      const response = await this.axios.get('/twitter/trending', {
-        params: { location }
+      const response = await this.axios.get('/twitter/trends', {
+        params: {
+          woeid: params.woeid,
+          count: params.count || 30
+        }
       });
 
       return response.data.trends;
+    });
+  }
+
+  async advancedSearch(params: AdvancedSearchParams): Promise<PaginatedResponse<Tweet>> {
+    return this.rateLimiter.execute(async () => {
+      const response = await this.axios.get('/twitter/tweet/advanced_search', {
+        params: {
+          query: params.query,
+          queryType: params.queryType || 'Latest',
+          cursor: params.cursor || ''
+        }
+      });
+
+      return {
+        data: response.data.tweets.map((tweet: any) => this.mapResponseToTweet(tweet)),
+        nextCursor: response.data.next_cursor,
+        hasMore: response.data.has_next_page
+      };
     });
   }
 
