@@ -36,6 +36,19 @@ Executes a 4-priority engagement system every 10-15 minutes:
 3. **PRIORITY 3**: Post original content (if >1.5 hours since last post)
 4. **PRIORITY 4**: Engage with quality posts about AI agents/openclaw
 
+## ⚠️ CRITICAL WORKFLOW UNDERSTANDING
+
+**The Queue System has 3 MANDATORY steps:**
+1. **FIND** content (prepare-queue.ts) → Creates items with status: "pending" or "ready"
+2. **RESPOND** with LLM (update-queue.ts) → Changes "pending" to "ready"
+3. **PUBLISH** to Twitter (process-queue.ts) → Changes "ready" to "completed" ⚠️ **NOTHING IS POSTED UNTIL THIS RUNS!**
+
+**Queue Item States:**
+- `pending` = Needs LLM response (replies, posts, engagements)
+- `ready` = Has response OR doesn't need one (likes, follows) - **BUT NOT PUBLISHED YET!**
+- `completed` = Actually posted to Twitter
+- `failed` = Posting failed
+
 ## 🚀 Quick Execution (Queue-Based Workflow)
 
 The bot now uses a queue system where you find content, generate responses, then publish:
@@ -70,12 +83,16 @@ npx ts-node update-queue.ts --example  # Creates template
 npx ts-node update-queue.ts --batch example-responses.json
 ```
 
-### Step 3: Publish Your Content
+### Step 3: Publish Your Content ⚠️ CRITICAL STEP!
 ```bash
 npx ts-node process-queue.ts
+# THIS ACTUALLY POSTS TO TWITTER!
+# Without this, your content stays in "ready" status forever
 # Publishes all ready items from queue
 # Updates state tracking
 ```
+
+**⚠️ REMEMBER:** Items marked "ready" are NOT published yet! You MUST run process-queue.ts to actually post them!
 
 ## 🎯 Configure Target Account & Search Focus
 
@@ -151,6 +168,42 @@ The bot uses a **three-tier query system** to find tweets:
 
 **Note:** If you don't include `within_time:` in your query, the bot automatically adds the configured time window (default 24h).
 
+## 🤖 Agent Responsibilities (What YOU Need to Do)
+
+### Manual Workflow (When running yourself):
+1. **Check queue status first:**
+   ```bash
+   npx ts-node view-queue.ts
+   # Look for "pending" items that need your LLM response
+   ```
+
+2. **Add LLM responses for pending items:**
+   ```bash
+   npx ts-node update-queue.ts --interactive
+   # Or update individually
+   ```
+
+3. **ALWAYS run process-queue after adding responses:**
+   ```bash
+   npx ts-node process-queue.ts
+   # This actually posts to Twitter!
+   ```
+
+### With Cron Running:
+- **Cron automatically runs:** prepare-queue → process-queue
+- **You still need to:** Check for pending items and add LLM responses
+- **Mechanical actions (likes/follows):** Auto-ready, cron will publish them
+- **Content needing LLM:** Will stay pending until you respond
+
+### Quick Status Check:
+```bash
+# See what needs attention:
+npx ts-node view-queue.ts | grep "pending"
+
+# If items show as "ready" but not posting, manually run:
+npx ts-node process-queue.ts
+```
+
 ## 🔄 Autonomous Operation Setup
 
 When asked to "set up continuous Twitter engagement":
@@ -160,14 +213,24 @@ When asked to "set up continuous Twitter engagement":
 crontab -e
 # Add this line:
 */15 * * * * /root/clawd/twitterapi-molt/viral-bot/viral-queue-cron.sh
+```
 
-# This cron will:
-# - Find new content every 15 minutes (prepare-queue)
-# - Publish ready items (process-queue)
-# - You need to periodically check and add LLM responses
+### What the Cron Does Every 15 Minutes:
+1. **Runs prepare-queue.ts** - Finds new content, creates queue items
+2. **Runs process-queue.ts** - Publishes any "ready" items to Twitter
 
-# For Old Direct Workflow (DEPRECATED - uses hardcoded responses)
-# */10 * * * * /root/clawd/twitterapi-molt/viral-bot/twitter-viral-cron.sh
+### What the Cron DOESN'T Do:
+- ❌ Add LLM responses (that's YOUR job!)
+- ❌ Convert "pending" to "ready" (needs your intelligence)
+
+### What This Means:
+- **Mechanical actions (likes/follows):** Will post automatically (they start as "ready")
+- **Content needing LLM (replies/posts/engagements):** Will accumulate as "pending" until you respond
+- **Your responsibility:** Periodically check for pending items and add responses
+
+```bash
+# Quick check what needs your attention:
+npx ts-node view-queue.ts | grep pending
 ```
 
 ## 📊 State Management
@@ -240,12 +303,14 @@ twitter_viral_bot:
   purpose: Autonomous Twitter engagement for viral growth
 
   execution:
-    # New queue-based workflow
+    # COMPLETE WORKFLOW (ALL 3 STEPS REQUIRED!)
     step0_focus: npx ts-node update-search-context.ts  # Set what to engage with
-    step1_find: npx ts-node prepare-queue.ts  # Find content (uses search context)
-    step2_view: npx ts-node view-queue.ts      # See prompts
-    step2_respond: npx ts-node update-queue.ts  # Add LLM responses
-    step3_publish: npx ts-node process-queue.ts  # Publish
+    step1_find: npx ts-node prepare-queue.ts  # Find content → creates "pending"/"ready"
+    step2_respond: npx ts-node update-queue.ts  # Add LLM responses → "pending" to "ready"
+    step3_publish: npx ts-node process-queue.ts  # ⚠️ ACTUALLY POSTS → "ready" to "completed"
+
+    # Quick status check:
+    check_queue: npx ts-node view-queue.ts  # See what needs attention
 
     # Old direct workflow (deprecated)
     single_run: ./twitter-viral.sh run
@@ -353,6 +418,28 @@ Use the viral bot when:
 
 ## 🚨 Troubleshooting
 
+### Common Issues:
+
+**1. Items stuck in "ready" status:**
+```bash
+# Check queue status:
+npx ts-node view-queue.ts
+
+# If you see "ready" items that aren't posting:
+npx ts-node process-queue.ts  # ← RUN THIS!
+```
+
+**2. "Why aren't my tweets posting?"**
+- Did you run ALL 3 steps? (prepare → update → **process**)
+- Check for "ready" items: `cat twitter-queue.json | jq '.items[] | select(.status == "ready")'`
+- **Solution:** Run `npx ts-node process-queue.ts`
+
+**3. "The bot marked items as completed but nothing posted"**
+- Check for error field: `cat twitter-queue.json | jq '.items[] | select(.error != null)'`
+- Account might be restricted (403/400 errors)
+- API credentials might be invalid
+
+**4. Check if bot/cron is running:**
 ```bash
 # Check if bot is running
 ps aux | grep twitter-viral
@@ -361,13 +448,22 @@ ps aux | grep twitter-viral
 grep CRON /var/log/syslog | tail -20
 
 # Check bot logs
-tail -100 twitter-viral.log
+tail -100 queue-bot.log
 
 # Verify credentials
 cat ../.env | grep TWITTER_
 
 # Test authentication
 npx ts-node test-viral-setup.ts
+```
+
+**5. Quick health check:**
+```bash
+# See queue summary:
+npx ts-node view-queue.ts | tail -10
+
+# Check for stuck items:
+cat twitter-queue.json | jq '[.items[] | .status] | group_by(.) | map({status: .[0], count: length})'
 ```
 
 ## 📈 Success Metrics
