@@ -264,17 +264,20 @@ Tweet:`,
       .slice(0, 2);
 
     for (const tweet of unengaged) {
+      // Extract username with fallback
+      const username = tweet.username || tweet.author_username || tweet.userId || 'unknown';
+
       const queueItem: QueueItem = {
         id: `engagement-${tweet.id}`,
         type: 'engagement',
         status: 'pending',
         context: {
           tweet: tweet,
-          username: tweet.username,
+          username: username,
           text: tweet.text,
           tweetId: tweet.id
         },
-        prompt: `You found this interesting tweet from @${tweet.username}: "${tweet.text}"
+        prompt: `You found this interesting tweet from @${username}: "${tweet.text}"
 
 Generate a thoughtful reply that:
 - Shows you understood their point
@@ -289,7 +292,7 @@ Reply:`,
 
       queue.items.push(queueItem);
       addedItems++;
-      console.log(`  ✅ Added engagement for @${tweet.username}'s tweet to queue`);
+      console.log(`  ✅ Added engagement for @${username}'s tweet to queue`);
     }
   } catch (error) {
     console.log('  ⚠️  Could not search for engagement targets');
@@ -317,13 +320,15 @@ Reply:`,
       .slice(0, Math.min(5, 30 - state.dailyLikes.count));
 
     for (const tweet of tweetsToLike || []) {
+      const username = tweet.username || tweet.author_username || tweet.userId || 'unknown';
+
       const queueItem: QueueItem = {
         id: `like-${tweet.id}`,
         type: 'like',
         status: 'ready',  // No LLM needed
         context: {
           tweet: tweet,
-          username: tweet.username,
+          username: username,
           text: tweet.text,
           tweetId: tweet.id
         },
@@ -333,7 +338,7 @@ Reply:`,
 
       queue.items.push(queueItem);
       addedItems++;
-      console.log(`  ✅ Added like for @${tweet.username}'s tweet`);
+      console.log(`  ✅ Added like for @${username}'s tweet`);
     }
   }
 
@@ -349,7 +354,7 @@ Reply:`,
       .filter((v: any, i: number, a: any[]) => a.findIndex(t => t.username === v.username) === i)  // Unique
       .slice(0, Math.min(3, 20 - state.dailyFollows.count));
 
-    for (const account of accountsToFollow) {
+    for (const account of accountsToFollow || []) {
       const queueItem: QueueItem = {
         id: `follow-${account.username}-${Date.now()}`,
         type: 'follow',

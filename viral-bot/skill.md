@@ -525,6 +525,38 @@ npx ts-node view-queue.ts | tail -10
 cat twitter-queue.json | jq '[.items[] | .status] | group_by(.) | map({status: .[0], count: length})'
 ```
 
+### Common API Errors & Fixes:
+
+**"API returned status 400"**
+- **Cause**: Rate limiting, invalid request, or account restrictions
+- **Fix**:
+  - Wait 15-30 minutes before retrying
+  - Check if account is restricted on Twitter web
+  - Verify credentials are still valid
+
+**"Could not extract tweet_id from response"**
+- **Cause**: API response format changed or auth issues
+- **Fix**:
+  - Re-authenticate: `npx ts-node test-viral-setup.ts`
+  - Check if login returns full auth tokens (not guest)
+  - May need fresh TOTP secret
+
+**"@undefined in tweets"**
+- **Cause**: Username field not populated by search API
+- **Fix**: Already handled with fallback logic in prepare-queue.ts
+
+**Daily limit exceeded (138 likes instead of 30)**
+- **Cause**: Rate limiting not enforced properly
+- **Fix**: Now enforced - max 30 likes/day, 20 follows/day
+- **Reset**: Counters reset at midnight UTC
+
+**"Guest credentials only"**
+- **Cause**: Login not completing to authenticated state
+- **Fix**:
+  - Check TOTP secret is current
+  - Verify account has no pending security challenges
+  - May need manual login on Twitter web first
+
 ## 📈 Success Metrics
 
 Monitor these in stats:

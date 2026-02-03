@@ -23,6 +23,7 @@ interface QueueItem {
   created_at: string;
   processed_at?: string;
   error?: string;
+  result?: { tweetId?: string };
 }
 
 interface Queue {
@@ -144,17 +145,27 @@ async function main() {
           if (item.context.tweetId) {
             console.log(`  ↩️  Replying to @${item.context.username}: "${item.llm_response}"`);
 
-            const reply = await client.tweets.create({
-              text: item.llm_response,
-              replyToTweetId: item.context.tweetId
-            });
+            let reply;
+            try {
+              reply = await client.tweets.create({
+                text: item.llm_response,
+                replyToTweetId: item.context.tweetId
+              });
+            } catch (error: any) {
+              console.log('  ❌ API Error:', error.message || error);
+              item.status = 'failed';
+              item.error = error.message || 'API error';
+              failCount++;
+              break;
+            }
 
-            if (reply.success) {
+            if (reply.success && reply.tweetId) {
               item.status = 'completed';
               item.processed_at = new Date().toISOString();
+              item.result = { tweetId: reply.tweetId };
               state.repliedMentions.push(item.context.tweetId);
               successCount++;
-              console.log('  ✅ Reply sent');
+              console.log('  ✅ Reply sent:', reply.tweetId);
             } else {
               item.status = 'failed';
               item.error = reply.message;
@@ -167,13 +178,23 @@ async function main() {
         case 'post':
           console.log(`  📝 Posting: "${item.llm_response.substring(0, 50)}..."`);
 
-          const post = await client.tweets.create({
-            text: item.llm_response
-          });
+          let post;
+          try {
+            post = await client.tweets.create({
+              text: item.llm_response
+            });
+          } catch (error: any) {
+            console.log('  ❌ API Error:', error.message || error);
+            item.status = 'failed';
+            item.error = error.message || 'API error';
+            failCount++;
+            break;
+          }
 
-          if (post.success) {
+          if (post.success && post.tweetId) {
             item.status = 'completed';
             item.processed_at = new Date().toISOString();
+            item.result = { tweetId: post.tweetId };
             state.lastPostTime = new Date().toISOString();
 
             // Track in tweets file
@@ -191,12 +212,12 @@ async function main() {
             fs.writeFileSync(TWEETS_FILE, JSON.stringify(recentPosts, null, 2));
 
             successCount++;
-            console.log('  ✅ Posted');
+            console.log('  ✅ Posted:', post.tweetId);
           } else {
             item.status = 'failed';
-            item.error = post.message;
+            item.error = post.message || 'Could not extract tweet_id from response';
             failCount++;
-            console.log('  ❌ Failed:', post.message);
+            console.log('  ❌ Failed:', post.message || 'No tweet_id in response');
           }
           break;
 
@@ -204,23 +225,39 @@ async function main() {
           if (item.context.tweetId) {
             console.log(`  💬 Engaging with @${item.context.username}'s tweet`);
 
-            const engagement = await client.tweets.create({
-              text: item.llm_response,
-              replyToTweetId: item.context.tweetId
-            });
+            let engagement;
+            try {
+              engagement = await client.tweets.create({
+                text: item.llm_response,
+                replyToTweetId: item.context.tweetId
+              });
+            } catch (error: any) {
+              console.log('  ❌ API Error:', error.message || error);
+              item.status = 'failed';
+              item.error = error.message || 'API error';
+              failCount++;
+              break;
+            }
 
-            if (engagement.success) {
+            if (engagement.success && engagement.tweetId) {
               item.status = 'completed';
               item.processed_at = new Date().toISOString();
+              item.result = { tweetId: engagement.tweetId };
               state.engagedTweets.push(item.context.tweetId);
 
-              // Also like the tweet
-              try {
-                await client.tweets.like(item.context.tweetId);
-                state.dailyLikes.count++;
-                console.log('  ❤️  Also liked the tweet');
-              } catch (e) {
-                // Ignore like failures
+              // Also like the tweet (but respect daily limit)
+              if (state.dailyLikes.count < 30) {
+                try {
+                  await client.tweets.like(item.context.tweetId);
+                  state.dailyLikes.count++;
+                  if (!state.likedTweets) state.likedTweets = [];
+                  state.likedTweets.push(item.context.tweetId);
+                  console.log(`  ❤️  Also liked the tweet (${state.dailyLikes.count}/30 today)`);
+                } catch (e) {
+                  // Ignore like failures
+                }
+              } else {
+                console.log('  ⏭️  Skipping like (daily limit reached)');
               }
 
               successCount++;
@@ -236,7 +273,16 @@ async function main() {
 
         case 'like':
           if (item.context.tweetId) {
-            console.log(`  ❤️  Liking @${item.context.username}'s tweet`);
+            // Check daily limit before attempting
+            if (state.dailyLikes.count >= 30) {
+              console.log(`  ⏭️  Skipping like for @${item.context.username} (daily limit reached: 30/30)`);
+              item.status = 'failed';
+              item.error = 'Daily like limit reached';
+              failCount++;
+              break;
+            }
+
+            console.log(`  ❤️  Liking @${item.context.username}'s tweet (${state.dailyLikes.count}/30)`);
 
             try {
               await client.tweets.like(item.context.tweetId);
@@ -249,7 +295,7 @@ async function main() {
               state.likedTweets.push(item.context.tweetId);
 
               successCount++;
-              console.log('  ✅ Liked');
+              console.log(`  ✅ Liked (${state.dailyLikes.count}/30 today)`);
             } catch (error: any) {
               item.status = 'failed';
               item.error = error.message;
@@ -261,7 +307,16 @@ async function main() {
 
         case 'follow':
           if (item.context.userId) {
-            console.log(`  👤 Following @${item.context.username}`);
+            // Check daily limit before attempting
+            if (state.dailyFollows.count >= 20) {
+              console.log(`  ⏭️  Skipping follow for @${item.context.username} (daily limit reached: 20/20)`);
+              item.status = 'failed';
+              item.error = 'Daily follow limit reached';
+              failCount++;
+              break;
+            }
+
+            console.log(`  👤 Following @${item.context.username} (${state.dailyFollows.count}/20)`);
 
             try {
               await client.users.follow({
@@ -278,7 +333,7 @@ async function main() {
               }
 
               successCount++;
-              console.log('  ✅ Followed');
+              console.log(`  ✅ Followed (${state.dailyFollows.count}/20 today)`);
             } catch (error: any) {
               item.status = 'failed';
               item.error = error.message;
