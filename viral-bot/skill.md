@@ -77,8 +77,9 @@ npx ts-node process-queue.ts
 # Updates state tracking
 ```
 
-## 🎯 Configure Target Account
+## 🎯 Configure Target Account & Search Focus
 
+### Set Target Account
 **IMPORTANT**: Before running, you need to set which account to monitor:
 
 ```bash
@@ -93,6 +94,43 @@ export TWITTER_TARGET_USERNAME="their_username"
 ```
 
 If not set, the bot will use the authenticated account's username as fallback.
+
+### Set Search Query (What to Engage With)
+The bot uses a **three-tier query system** to find tweets:
+
+1. **Dynamic Context** (Highest Priority)
+   ```bash
+   # Update based on your current interests/personality:
+   npx ts-node update-search-context.ts --interactive
+
+   # Or direct update:
+   npx ts-node update-search-context.ts "AI agents OR openclaw min_faves:50" "Focusing on agent discourse" 7
+   ```
+
+2. **Environment Variable** (Fallback)
+   ```bash
+   echo "TWITTER_SEARCH_QUERY='bitcoin OR ethereum min_faves:100 lang:en'" >> ../.env
+   ```
+
+3. **Default Query** (Last Resort)
+   ```
+   (autonomous agents OR AI agents OR openclaw) min_faves:50 -is:retweet lang:en
+   ```
+
+### Example Search Queries
+```
+# Tech focused:
+"machine learning OR neural networks min_faves:100"
+
+# Crypto focused:
+"bitcoin OR ethereum OR solana -is:retweet min_retweets:20"
+
+# Startup focused:
+"#buildInPublic OR indie hacker from:verified"
+
+# Your personality specific:
+"[topics from your SOUL.md] min_faves:50 lang:en"
+```
 
 ## 🔄 Autonomous Operation Setup
 
@@ -131,9 +169,22 @@ All state is tracked in `twitter-viral-state.json`:
 
 The bot uses a **queue system** that separates finding work from generating content:
 
-1. **prepare-queue.ts** - Finds tweets/mentions and creates prompts
+1. **prepare-queue.ts** - Finds tweets/mentions and creates prompts (uses your search context)
 2. **YOUR LLM** - Generates responses for each prompt
 3. **process-queue.ts** - Publishes your responses
+
+### Updating What You Engage With
+Based on your personality and current interests, update the search focus:
+
+```bash
+cd viral-bot
+# Review your personality files first
+cat ../SOUL.md  # or ../MEMORY.md
+
+# Then update search context
+npx ts-node update-search-context.ts --interactive
+# Enter a query that matches your interests
+```
 
 ### Queue File Structure (twitter-queue.json):
 ```json
@@ -171,7 +222,8 @@ twitter_viral_bot:
 
   execution:
     # New queue-based workflow
-    step1_find: npx ts-node prepare-queue.ts  # Find content
+    step0_focus: npx ts-node update-search-context.ts  # Set what to engage with
+    step1_find: npx ts-node prepare-queue.ts  # Find content (uses search context)
     step2_view: npx ts-node view-queue.ts      # See prompts
     step2_respond: npx ts-node update-queue.ts  # Add LLM responses
     step3_publish: npx ts-node process-queue.ts  # Publish
@@ -193,10 +245,16 @@ twitter_viral_bot:
 
   target_account: ASK_HUMAN_FOR_USERNAME  # Update this!
 
+  search_focus:
+    dynamic: twitter-search-context.json  # Highest priority
+    env_var: TWITTER_SEARCH_QUERY         # Fallback
+    default: "AI agents OR openclaw"       # Last resort
+
   state_tracking:
     file: twitter-viral-state.json
     tweets_log: tweets.json
     activity_log: twitter-viral.log
+    search_context: twitter-search-context.json
 
   rate_limits:
     mentions_per_cycle: 2

@@ -30,8 +30,19 @@ interface Queue {
   last_updated: string;
 }
 
+interface SearchContext {
+  current_focus: {
+    query: string;
+    reason?: string;
+    expires_at?: string;
+    last_updated_by?: string;
+  };
+  suggested_queries?: string[];
+}
+
 const QUEUE_FILE = 'twitter-queue.json';
 const STATE_FILE = 'twitter-viral-state.json';
+const SEARCH_CONTEXT_FILE = 'twitter-search-context.json';
 
 function loadQueue(): Queue {
   try {
@@ -51,6 +62,26 @@ function loadQueue(): Queue {
 function saveQueue(queue: Queue): void {
   queue.last_updated = new Date().toISOString();
   fs.writeFileSync(QUEUE_FILE, JSON.stringify(queue, null, 2));
+}
+
+function loadSearchContext(): SearchContext | null {
+  try {
+    if (fs.existsSync(SEARCH_CONTEXT_FILE)) {
+      const context = JSON.parse(fs.readFileSync(SEARCH_CONTEXT_FILE, 'utf-8'));
+      // Check if context has expired
+      if (context.current_focus?.expires_at) {
+        const expiryDate = new Date(context.current_focus.expires_at);
+        if (expiryDate < new Date()) {
+          console.log('  ⚠️  Search context expired, will use fallback');
+          return null;
+        }
+      }
+      return context;
+    }
+  } catch (e) {
+    console.log('  ⚠️  Could not load search context');
+  }
+  return null;
 }
 
 function loadState(): any {
@@ -73,6 +104,34 @@ function loadState(): any {
 
 async function main() {
   console.log('📋 Preparing Twitter engagement queue...\n');
+
+  // Determine search query using three-tier system
+  let searchQuery: string;
+  let querySource: string;
+
+  // Priority 1: Dynamic search context file
+  const searchContext = loadSearchContext();
+  if (searchContext?.current_focus?.query) {
+    searchQuery = searchContext.current_focus.query;
+    querySource = 'dynamic context';
+    if (searchContext.current_focus.reason) {
+      console.log(`📍 Search focus: ${searchContext.current_focus.reason}`);
+    }
+  }
+  // Priority 2: Environment variable
+  else if (process.env.TWITTER_SEARCH_QUERY) {
+    searchQuery = process.env.TWITTER_SEARCH_QUERY;
+    querySource = 'env variable';
+  }
+  // Priority 3: Default fallback
+  else {
+    searchQuery = '(autonomous agents OR AI agents OR openclaw) min_faves:50 -is:retweet lang:en';
+    querySource = 'default';
+    console.log('💡 Tip: Create twitter-search-context.json or set TWITTER_SEARCH_QUERY to customize');
+  }
+
+  console.log(`🔍 Query source: ${querySource}`);
+  console.log(`🔍 Search query: "${searchQuery.substring(0, 80)}${searchQuery.length > 80 ? '...' : ''}"\n`);
 
   const client = new TwitterAPIClient({
     apiKey: process.env.TWITTER_API_KEY!,
@@ -176,7 +235,7 @@ Tweet:`,
   let qualitySearch: any = null;
   try {
     qualitySearch = await client.search.advancedSearch({
-      query: '(autonomous agents OR AI agents OR openclaw) min_faves:50 -is:retweet lang:en',
+      query: searchQuery,
       queryType: 'Top'
     });
 
