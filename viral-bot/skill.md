@@ -168,6 +168,64 @@ The bot uses a **three-tier query system** to find tweets:
 
 **Note:** If you don't include `within_time:` in your query, the bot automatically adds the configured time window (default 24h).
 
+## 📊 Performance Review & Strategy Adjustment
+
+### Analyze Your Performance (Every 6 Hours or When Asked):
+```bash
+cd viral-bot
+npx ts-node analyze-performance.ts --days=7
+# Fetches your tweets and engagement metrics
+# Saves analysis to twitter-performance.json
+```
+
+### What You Get:
+- **Engagement rates** for each tweet
+- **Top performing content** to understand what works
+- **Best posting times** based on actual performance
+- **Successful topics** that resonate with your audience
+- **Content patterns** (questions vs statements, short vs long)
+
+### How to Use This Data:
+
+1. **Review your insights:**
+   ```bash
+   cat twitter-performance.json | jq '.insights'
+   ```
+
+2. **Update your search queries based on successful topics:**
+   ```bash
+   # If "AI safety" performs well, update your search context:
+   npx ts-node update-search-context.ts "AI safety OR alignment min_faves:50" "Focusing on high-performing topics"
+   ```
+
+3. **Adjust your content style:**
+   - If questions get more engagement → Use more questions in responses
+   - If short tweets perform better → Keep responses concise
+   - If certain hours work best → Consider timing for important posts
+
+4. **Learn from top tweets:**
+   ```bash
+   cat twitter-performance.json | jq '.insights.top_tweets[0]'
+   # Study what made this tweet successful
+   # Replicate the tone, structure, or topic
+   ```
+
+### Strategy Iteration Cycle:
+1. Run performance analysis every 6 hours
+2. Identify patterns in successful content
+3. Update search context to match successful topics
+4. Adjust tone/style when generating LLM responses
+5. Track if changes improve engagement
+
+### Quick Performance Check:
+```bash
+# One-liner to see your best performing content patterns:
+cat twitter-performance.json | jq '.insights.content_patterns'
+
+# See your engagement trend:
+cat twitter-performance.json | jq '.insights | {avg_engagement: .avg_engagement_rate, total_impressions, best_topics: .successful_topics}'
+```
+
 ## 🤖 Agent Responsibilities (What YOU Need to Do)
 
 ### Manual Workflow (When running yourself):
@@ -309,7 +367,8 @@ twitter_viral_bot:
     step2_respond: npx ts-node update-queue.ts  # Add LLM responses → "pending" to "ready"
     step3_publish: npx ts-node process-queue.ts  # ⚠️ ACTUALLY POSTS → "ready" to "completed"
 
-    # Quick status check:
+    # Analytics & optimization:
+    analyze_performance: npx ts-node analyze-performance.ts  # Review what's working (run every 6h)
     check_queue: npx ts-node view-queue.ts  # See what needs attention
 
     # Old direct workflow (deprecated)
