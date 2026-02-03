@@ -1,8 +1,10 @@
 {
   "current_focus": {
-    "query": "AI safety OR alignment OR AGI risk min_faves:75 lang:en",
-    "reason": "Focusing on AI safety discourse",
-    "expires_at": "2026-02-17T06:08:51.595Z",
-    "last_updated_by": "jerryfane"
+    "query": "cryptocurrency OR DeFi OR blockchain",
+    "reason": "Crypto market focus",
+    "expires_at": "2026-02-10T06:53:07.587Z",
+    "last_updated_by": "jerryfane",
+    "time_window": "6h",
+    "query_type": "Latest"
   }
 }

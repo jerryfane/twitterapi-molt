@@ -11,6 +11,8 @@ interface SearchContext {
     reason?: string;
     expires_at?: string;
     last_updated_by?: string;
+    time_window?: string;
+    query_type?: 'Top' | 'Latest';
   };
   suggested_queries?: string[];
 }
@@ -49,13 +51,17 @@ async function main() {
     const query = args[0];
     const reason = args[1] || 'Updated by agent';
     const daysValid = parseInt(args[2] || '7');
+    const timeWindow = args[3] || '24h';
+    const queryType = (args[4] === 'Latest' ? 'Latest' : 'Top') as 'Top' | 'Latest';
 
     const context: SearchContext = {
       current_focus: {
         query: query,
         reason: reason,
         expires_at: new Date(Date.now() + daysValid * 24 * 60 * 60 * 1000).toISOString(),
-        last_updated_by: process.env.USER || 'agent'
+        last_updated_by: process.env.USER || 'agent',
+        time_window: timeWindow,
+        query_type: queryType
       }
     };
 
@@ -64,6 +70,8 @@ async function main() {
     console.log(`   Query: "${query}"`);
     console.log(`   Reason: ${reason}`);
     console.log(`   Valid for: ${daysValid} days`);
+    console.log(`   Time window: ${timeWindow}`);
+    console.log(`   Query type: ${queryType}`);
 
     rl.close();
     return;
@@ -93,6 +101,8 @@ async function main() {
   console.log('  • "bitcoin OR ethereum OR crypto min_retweets:50 -is:retweet"');
   console.log('  • "machine learning OR neural networks from:verified"');
   console.log('  • "#buildInPublic OR indie hacker min_faves:20 lang:en"\n');
+  console.log('Time windows: 1h, 6h, 12h, 24h (default), 2d, 7d, 30d');
+  console.log('Query types: Top (popular/quality), Latest (most recent)\n');
 
   const query = await question('Enter your search query: ');
 
@@ -106,6 +116,10 @@ async function main() {
   const daysStr = await question('Valid for how many days? (default: 7): ');
   const daysValid = parseInt(daysStr) || 7;
 
+  const timeWindow = await question('Time window for tweets (e.g., 24h, 7d, default: 24h): ') || '24h';
+  const queryTypeStr = await question('Query type - Top or Latest? (default: Top): ');
+  const queryType = (queryTypeStr === 'Latest' ? 'Latest' : 'Top') as 'Top' | 'Latest';
+
   // Ask for suggested alternatives
   const suggestionsStr = await question('Alternative queries (comma-separated, optional): ');
   const suggestions = suggestionsStr ? suggestionsStr.split(',').map(s => s.trim()).filter(s => s) : undefined;
@@ -115,7 +129,9 @@ async function main() {
       query: query.trim(),
       reason: reason.trim() || undefined,
       expires_at: new Date(Date.now() + daysValid * 24 * 60 * 60 * 1000).toISOString(),
-      last_updated_by: process.env.USER || 'agent'
+      last_updated_by: process.env.USER || 'agent',
+      time_window: timeWindow,
+      query_type: queryType
     },
     suggested_queries: suggestions
   };
@@ -136,10 +152,11 @@ if (process.argv.length === 2) {
   console.log('  Interactive mode:');
   console.log('    npx ts-node update-search-context.ts --interactive\n');
   console.log('  Direct update:');
-  console.log('    npx ts-node update-search-context.ts "<query>" ["<reason>"] [days_valid]\n');
+  console.log('    npx ts-node update-search-context.ts "<query>" ["<reason>"] [days] [time_window] [type]\n');
   console.log('Examples:');
   console.log('  npx ts-node update-search-context.ts "AI safety OR alignment min_faves:50"');
-  console.log('  npx ts-node update-search-context.ts "crypto OR web3" "Focusing on blockchain tech" 14');
+  console.log('  npx ts-node update-search-context.ts "crypto OR web3" "Focusing on blockchain" 14 "7d" "Latest"');
+  console.log('  npx ts-node update-search-context.ts "AI agents" "Agent discourse" 7 "24h" "Top"');
   process.exit(0);
 }
 

@@ -36,6 +36,8 @@ interface SearchContext {
     reason?: string;
     expires_at?: string;
     last_updated_by?: string;
+    time_window?: string;  // e.g., "1h", "24h", "7d"
+    query_type?: 'Top' | 'Latest';  // Top = popular, Latest = recent
   };
   suggested_queries?: string[];
 }
@@ -111,11 +113,20 @@ async function main() {
 
   // Priority 1: Dynamic search context file
   const searchContext = loadSearchContext();
+  let timeWindow = '24h';  // Default time window
+  let queryType: 'Top' | 'Latest' = 'Top';  // Default to Top
+
   if (searchContext?.current_focus?.query) {
     searchQuery = searchContext.current_focus.query;
     querySource = 'dynamic context';
     if (searchContext.current_focus.reason) {
       console.log(`📍 Search focus: ${searchContext.current_focus.reason}`);
+    }
+    if (searchContext.current_focus.time_window) {
+      timeWindow = searchContext.current_focus.time_window;
+    }
+    if (searchContext.current_focus.query_type) {
+      queryType = searchContext.current_focus.query_type;
     }
   }
   // Priority 2: Environment variable
@@ -130,8 +141,14 @@ async function main() {
     console.log('💡 Tip: Create twitter-search-context.json or set TWITTER_SEARCH_QUERY to customize');
   }
 
+  // Append time filter to query if not already present
+  if (!searchQuery.includes('within_time:') && !searchQuery.includes('since:')) {
+    searchQuery = `${searchQuery} within_time:${timeWindow}`;
+  }
+
   console.log(`🔍 Query source: ${querySource}`);
-  console.log(`🔍 Search query: "${searchQuery.substring(0, 80)}${searchQuery.length > 80 ? '...' : ''}"\n`);
+  console.log(`🔍 Search query: "${searchQuery.substring(0, 80)}${searchQuery.length > 80 ? '...' : ''}"`);
+  console.log(`⏰ Time window: ${timeWindow} | Type: ${queryType}\n`);
 
   const client = new TwitterAPIClient({
     apiKey: process.env.TWITTER_API_KEY!,
@@ -236,7 +253,7 @@ Tweet:`,
   try {
     qualitySearch = await client.search.advancedSearch({
       query: searchQuery,
-      queryType: 'Top'
+      queryType: queryType
     });
 
     const unengaged = qualitySearch.data

@@ -103,8 +103,9 @@ The bot uses a **three-tier query system** to find tweets:
    # Update based on your current interests/personality:
    npx ts-node update-search-context.ts --interactive
 
-   # Or direct update:
-   npx ts-node update-search-context.ts "AI agents OR openclaw min_faves:50" "Focusing on agent discourse" 7
+   # Or direct update with all options:
+   # Format: query, reason, days_valid, time_window, query_type
+   npx ts-node update-search-context.ts "AI agents OR openclaw min_faves:50" "Focusing on agent discourse" 7 "24h" "Top"
    ```
 
 2. **Environment Variable** (Fallback)
@@ -117,20 +118,38 @@ The bot uses a **three-tier query system** to find tweets:
    (autonomous agents OR AI agents OR openclaw) min_faves:50 -is:retweet lang:en
    ```
 
+### Search Configuration Options
+
+**Time Windows:**
+- `1h` - Last hour (breaking news, real-time)
+- `6h` - Last 6 hours (very recent)
+- `24h` - Last 24 hours (default, daily engagement)
+- `7d` - Last week (broader context)
+- `30d` - Last month (evergreen content)
+
+**Query Types:**
+- `Top` - Most popular/engaging tweets (default)
+- `Latest` - Most recent tweets
+
 ### Example Search Queries
 ```
-# Tech focused:
-"machine learning OR neural networks min_faves:100"
+# Tech focused (recent):
+"machine learning OR neural networks min_faves:100"  # Auto-adds within_time:24h
 
-# Crypto focused:
-"bitcoin OR ethereum OR solana -is:retweet min_retweets:20"
+# Crypto focused (trending):
+"bitcoin OR ethereum OR solana -is:retweet min_retweets:20 within_time:6h"
 
-# Startup focused:
-"#buildInPublic OR indie hacker from:verified"
+# Startup focused (weekly digest):
+"#buildInPublic OR indie hacker from:verified within_time:7d"
+
+# Breaking AI news (last hour):
+"AI breakthrough OR GPT OR Claude within_time:1h"
 
 # Your personality specific:
-"[topics from your SOUL.md] min_faves:50 lang:en"
+"[topics from your SOUL.md] min_faves:50 lang:en within_time:24h"
 ```
+
+**Note:** If you don't include `within_time:` in your query, the bot automatically adds the configured time window (default 24h).
 
 ## 🔄 Autonomous Operation Setup
 
