@@ -135,7 +135,8 @@ async function main() {
     try {
       console.log(`Processing ${item.type}: ${item.id}`);
 
-      if (!item.llm_response) {
+      // Only check for LLM response on items that need it
+      if ((item.type === 'reply' || item.type === 'post' || item.type === 'engagement') && !item.llm_response) {
         console.log('  ⚠️  No LLM response, skipping');
         continue;
       }
@@ -148,7 +149,7 @@ async function main() {
             let reply;
             try {
               reply = await client.tweets.create({
-                text: item.llm_response,
+                text: item.llm_response!,  // We already checked it exists above
                 replyToTweetId: item.context.tweetId
               });
             } catch (error: any) {
@@ -176,12 +177,12 @@ async function main() {
           break;
 
         case 'post':
-          console.log(`  📝 Posting: "${item.llm_response.substring(0, 50)}..."`);
+          console.log(`  📝 Posting: "${item.llm_response!.substring(0, 50)}..."`);
 
           let post;
           try {
             post = await client.tweets.create({
-              text: item.llm_response
+              text: item.llm_response!  // We already checked it exists above
             });
           } catch (error: any) {
             console.log('  ❌ API Error:', error.message || error);
@@ -205,7 +206,7 @@ async function main() {
               }
             } catch (e) {}
 
-            recentPosts.push(item.llm_response);
+            recentPosts.push(item.llm_response!);
             if (recentPosts.length > 20) {
               recentPosts = recentPosts.slice(-20);
             }
@@ -228,7 +229,7 @@ async function main() {
             let engagement;
             try {
               engagement = await client.tweets.create({
-                text: item.llm_response,
+                text: item.llm_response!,  // We already checked it exists above
                 replyToTweetId: item.context.tweetId
               });
             } catch (error: any) {
